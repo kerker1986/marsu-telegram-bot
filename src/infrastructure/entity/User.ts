@@ -1,22 +1,25 @@
 import {StatusEnum} from "@prisma/client"
 import {v4} from "uuid"
+import {Testing} from "./Testing";
 
 export class User {
     private readonly _firstName: string;
     private readonly _lastName: string;
     private readonly _userName: string;
     private readonly _telegramId: number;
-    private readonly _status: StatusEnum;
+    private _status: StatusEnum;
+    private _editingTestingId: string | null;
 
     private readonly _id: string;
 
 
-    constructor(firstName: string, lastName: string, userName: string, telegramId: number, status: StatusEnum, id: string = v4()) {
+    constructor(firstName: string, lastName: string, userName: string, telegramId: number, status: StatusEnum, editingTestingId: string | null = null, id: string = v4()) {
         this._firstName = firstName;
         this._lastName = lastName;
         this._userName = userName;
         this._telegramId = telegramId;
         this._status = status;
+        this._editingTestingId = editingTestingId;
         this._id = id;
     }
 
@@ -43,5 +46,19 @@ export class User {
 
     get id(): string {
         return this._id;
+    }
+
+
+    get editingTestingId(): string | null {
+        return this._editingTestingId;
+    }
+
+    set status(value: StatusEnum) {
+        this._status = value;
+    }
+
+
+    set editingTestingId(value: string | null) {
+        this._editingTestingId = value;
     }
 }

@@ -23,29 +23,32 @@ enum StatusEnum {
 }
 
 model User {
-  id         String     @id
-  firstName  String
-  lastName   String
-  userName   String
-  status     StatusEnum @default(start)
-  telegramId Int
-  testings   Testing[]
+  id               String     @id
+  firstName        String
+  lastName         String
+  userName         String
+  status           StatusEnum @default(start)
+  telegramId       Int
+  testings         Testing[]
+  editingTestingId String?
 }
 
 model Testing {
-  id        String     @id
-  title     String
-  owner     User       @relation(fields: [ownerId], references: [id])
-  ownerId   String
-  questions Question[]
+  id                String     @id
+  title             String
+  owner             User       @relation(fields: [ownerId], references: [id])
+  ownerId           String
+  questions         Question[]
+  editingQuestionId String?
 }
 
 model Question {
-  id        String    @id
-  body      String
-  answers   Answers[]
-  testing   Testing   @relation(fields: [testingId], references: [id])
-  testingId String
+  id              String    @id
+  body            String
+  answers         Answers[]
+  testing         Testing   @relation(fields: [testingId], references: [id])
+  testingId       String
+  editingAnswerId String?
 }
 
 model Answers {

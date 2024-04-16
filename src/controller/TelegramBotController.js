@@ -8,23 +8,115 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TelegramBotController = void 0;
+const User_1 = require("../infrastructure/entity/User");
+const BotAnswerEnums_1 = __importDefault(require("../infrastructure/BotAnswerEnums"));
+const Testing_1 = require("../infrastructure/entity/Testing");
 class TelegramBotController {
     constructor(telegramBot, userRepository, testingRepository) {
         this.telegramBot = telegramBot;
         this.userRepository = userRepository;
         this.testingRepository = testingRepository;
-        telegramBot.on("message", this.onMessage);
+        this.telegramBot.on("message", this.onMessage.bind(this));
     }
     onMessage(message) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             try {
-                console.log(message);
+                let user = yield this.userRepository.getByTelegramId((_a = message.from) === null || _a === void 0 ? void 0 : _a.id);
+                if (!user) {
+                    user = yield this.createUser(message);
+                }
+                switch (message.text) {
+                    case '/start':
+                        if (user.status !== 'start')
+                            return;
+                        yield this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums_1.default.BotMessagesText.start, {
+                            reply_markup: {
+                                keyboard: [
+                                    [{ text: BotAnswerEnums_1.default.BotButtonsText.create_testing }, { text: BotAnswerEnums_1.default.BotButtonsText.passing_testing }],
+                                ],
+                                one_time_keyboard: true,
+                                resize_keyboard: true
+                            }
+                        });
+                        break;
+                    case BotAnswerEnums_1.default.BotButtonsText.create_testing:
+                        if (user.status !== 'start')
+                            return;
+                        user.status = "create_testing";
+                        user.editingTestingId = (yield this.createEmptyTesting(user.id)).id;
+                        yield this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums_1.default.BotMessagesText.create_testing_title, {
+                            reply_markup: {
+                                keyboard: [
+                                    [{ text: BotAnswerEnums_1.default.BotButtonsText.back_to_start }],
+                                ],
+                                one_time_keyboard: true,
+                                resize_keyboard: true
+                            }
+                        });
+                        break;
+                    case BotAnswerEnums_1.default.BotButtonsText.back_to_start:
+                        user.status = "start";
+                        if (user.editingTestingId) {
+                            yield this.testingRepository.deleteById(user.editingTestingId);
+                            user.editingTestingId = null;
+                        }
+                        yield this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums_1.default.BotMessagesText.start, {
+                            reply_markup: {
+                                keyboard: [
+                                    [{ text: BotAnswerEnums_1.default.BotButtonsText.create_testing }, { text: BotAnswerEnums_1.default.BotButtonsText.passing_testing }],
+                                ],
+                                one_time_keyboard: true,
+                                resize_keyboard: true
+                            }
+                        });
+                        break;
+                    default:
+                        switch (user.status) {
+                            case 'create_testing':
+                                if (!message.text)
+                                    return;
+                                const testing = yield this.testingRepository.getById(user.editingTestingId);
+                                if (!testing)
+                                    return;
+                                testing.title = message.text;
+                                yield this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums_1.default.BotMessagesText.create_testing_title_save, {
+                                    reply_markup: {
+                                        keyboard: [
+                                            [{ text: BotAnswerEnums_1.default.BotButtonsText.back_to_start }, { text: BotAnswerEnums_1.default.BotButtonsText.passing_testing }],
+                                        ],
+                                        one_time_keyboard: true,
+                                        resize_keyboard: true
+                                    }
+                                });
+                        }
+                        break;
+                }
+                yield this.userRepository.update(user);
             }
             catch (e) {
                 console.log(e);
             }
+        });
+    }
+    createUser(message) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c, _d;
+            const user = new User_1.User((_a = message.from) === null || _a === void 0 ? void 0 : _a.first_name, (_b = message.from) === null || _b === void 0 ? void 0 : _b.last_name, (_c = message.from) === null || _c === void 0 ? void 0 : _c.username, (_d = message.from) === null || _d === void 0 ? void 0 : _d.id, 'start');
+            yield this.userRepository.create(user);
+            return user;
+        });
+    }
+    createEmptyTesting(ownerId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const testing = new Testing_1.Testing('', []);
+            yield this.testingRepository.create(testing, ownerId);
+            return testing;
         });
     }
 }

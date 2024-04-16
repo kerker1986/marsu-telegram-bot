@@ -1,7 +1,5 @@
-import {TestingRepository} from "../TestingRepository";
 import {PrismaClient} from "@prisma/client";
 import {UserRepository} from "../UserRepository";
-import {DatabaseError} from "../../infrastructure/errors/DatabaseError";
 import {User} from "../../infrastructure/entity/User";
 
 export class UserRepositoryImpl implements UserRepository {
@@ -22,6 +20,7 @@ export class UserRepositoryImpl implements UserRepository {
                     userName: true,
                     status: true,
                     telegramId: true,
+                    editingTestingId: true
                 },
                 where: {
                     telegramId: id
@@ -32,9 +31,47 @@ export class UserRepositoryImpl implements UserRepository {
                 return null;
             }
 
-            return new User(data.firstName, data.lastName, data.userName, data.telegramId, data.status, data.id);
+            return new User(data.firstName, data.lastName, data.userName, data.telegramId, data.status, data.editingTestingId, data.id);
         } catch (e) {
-            throw new DatabaseError(e);
+            console.log(e);
+            return null;
+        }
+    }
+
+    async create(user: User): Promise<void> {
+        try {
+            await this.dbClient.user.create({
+                data: {
+                    id: user.id,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    userName: user.userName,
+                    telegramId: user.telegramId,
+                    editingTestingId: user.editingTestingId,
+                    status: user.status
+                }
+            })
+        } catch (e) {
+            console.log(e);
+        }
+    }
+
+    async update(user: User): Promise<void> {
+        try {
+            await this.dbClient.user.update({
+                where: {
+                    id: user.id
+                },
+                data: {
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    userName: user.userName,
+                    status: user.status,
+                    editingTestingId: user.editingTestingId,
+                }
+            })
+        } catch (e) {
+            console.log(e);
         }
     }
 
