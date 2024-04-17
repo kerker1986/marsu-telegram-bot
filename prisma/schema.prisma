@@ -20,6 +20,7 @@ enum StatusEnum {
   create_question
   create_answer
   passing_testing
+  pick_correct_answer
 }
 
 model User {

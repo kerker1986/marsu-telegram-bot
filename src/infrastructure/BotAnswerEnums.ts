@@ -3,10 +3,11 @@ enum BotMessagesText {
     start_reply = 'Прогресс создания/прохождения тестирование анулировано. Вы моежете начать сначала',
     create_testing_title = 'Введите название тестирования',
     create_testing_title_save = 'Название тестирования сохранено, добавьте вопросы',
-    create_question_title = 'Введите название вопроса',
-    create_question_title_save = 'Название вопроса сохранено, добавьте ответы к вопросу',
-    create_answer_title = 'Введите название ответа',
-    create_answer_title_save = 'Название ответа сохранено, вы можете добавить еще ответов',
+    create_question_title = 'Введите вопрос',
+    create_question_title_save = 'Вопрос сохранен, добавьте ответы к вопросу',
+    create_answer_title = 'Введите ответ',
+    create_answer_title_save = 'Ответ сохранен, вы можете добавить еще ответов',
+    pick_correct_answer = 'Укажите правильный ответ',
 }
 
 enum BotButtonsText {
@@ -15,7 +16,7 @@ enum BotButtonsText {
     back_to_start = 'Вернуться в начало',
     add_question = 'Добавить вопрос',
     add_answer = 'Добавить ответ',
-    correct_answer = 'Указать правильный ответ',
+    pick_correct_answer = 'Указать правильный ответ',
 }
 
 export default {BotButtonsText, BotMessagesText};

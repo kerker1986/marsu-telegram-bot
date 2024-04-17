@@ -131,31 +131,64 @@ export class TelegramBotController {
                     break;
 
 
+                case BotAnswerEnums.BotButtonsText.pick_correct_answer:
+                    if (user.status !== 'create_answer' || !user.editingTestingId) return;
+
+                    user.status = 'pick_correct_answer';
+
+                    const qId: string | null | undefined = (await this.testingRepository.getById(user.editingTestingId as string))?.editingQuestionId;
+                    if (!qId) return;
+
+                    const currentQuestion: Question | null = await this.testingRepository.getQuestionById(qId);
+
+                    if (!currentQuestion) return;
+
+                    await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.pick_correct_answer, {
+                        // @ts-ignore
+                        keyboard: [...currentQuestion.answers.map((item) => [{text: item.body}])],
+                        one_time_keyboard: true,
+                        resize_keyboard: true
+                    });
+
+
+                    break;
+
+
                 default:
 
                     switch (user.status) {
+
                         case 'create_answer':
+
                             if (!message.text) return;
 
-                            const questionId: string | null | undefined = (await this.testingRepository.getById(user.editingTestingId as string))?.editingQuestionId;
+                            const qId: string | null | undefined = (await this.testingRepository.getById(user.editingTestingId as string))?.editingQuestionId;
 
-                            if (!questionId) return;
+                            if (!qId) return;
 
-                            const answerId:string | null | undefined= (await this.testingRepository.getQuestionById(questionId))?.editingAnswerId;
+                            const currentQuestion: Question | null = await this.testingRepository.getQuestionById(qId);
 
-                            if (!answerId) return;
+                            if (!currentQuestion) return;
 
-                            question.body = message.text;
+                            const answer: Answer | null = await this.testingRepository.getAnswerById(currentQuestion.editingAnswerId as string);
 
-                            await this.testingRepository.updateQuestion(question);
+                            if (!answer) return;
+
+                            answer.body = message.text;
+
+                            await this.testingRepository.updateAnswer(answer);
 
                             user.status = "create_answer";
 
-                            await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.create_question_title_save, {
+                            const keyboard = [[{text: BotAnswerEnums.BotButtonsText.add_answer}]];
+
+                            if (currentQuestion?.answers.length >= 2) {
+                                keyboard.push([{text: BotAnswerEnums.BotButtonsText.pick_correct_answer}]);
+                            }
+
+                            await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.create_answer_title_save, {
                                 reply_markup: {
-                                    keyboard: [
-                                        [{text: BotAnswerEnums.BotButtonsText.add_answer}],
-                                    ],
+                                    keyboard,
                                     one_time_keyboard: true,
                                     resize_keyboard: true
                                 }
@@ -198,6 +231,8 @@ export class TelegramBotController {
                             const testing: Testing | null = await this.testingRepository.getById(user.editingTestingId as string);
 
                             if (!testing) return;
+
+                            console.log(message.text)
 
                             testing.title = message.text;
 

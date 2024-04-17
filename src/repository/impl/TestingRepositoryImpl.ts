@@ -42,11 +42,11 @@ export class TestingRepositoryImpl implements TestingRepository {
                     answers.push(new Answer(data.questions[i].answers[j].body, data.questions[i].answers[j].correct, data.questions[i].answers[j].id));
                 }
 
-                questions.push(new Question(data.questions[i].body, answers, data.questions[i].id));
+                questions.push(new Question(data.questions[i].body, answers, data.questions[i].editingAnswerId, data.questions[i].id));
             }
 
 
-            return new Testing(data.title, questions, data.id);
+            return new Testing(data.title, questions, data.editingQuestionId, data.id);
         } catch (e) {
             console.log(e);
             return null;
@@ -70,12 +70,14 @@ export class TestingRepositoryImpl implements TestingRepository {
 
     async update(testing: Testing): Promise<void> {
         try {
+
             await this.dbClient.testing.update({
                 where: {
                     id: testing.id
                 },
                 data: {
                     title: testing.title,
+                    editingQuestionId: testing.editingQuestionId
                 }
             });
 
@@ -139,6 +141,8 @@ export class TestingRepositoryImpl implements TestingRepository {
                 },
                 data: {
                     body: question.body,
+                    editingAnswerId: question.editingAnswerId,
+
                 }
             });
         } catch (e) {

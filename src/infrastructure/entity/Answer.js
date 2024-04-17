@@ -17,5 +17,11 @@ class Answer {
     get id() {
         return this._id;
     }
+    set body(value) {
+        this._body = value;
+    }
+    set correct(value) {
+        this._correct = value;
+    }
 }
 exports.Answer = Answer;

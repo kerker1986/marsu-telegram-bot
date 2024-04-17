@@ -41,9 +41,9 @@ class TestingRepositoryImpl {
                     for (let j = 0; j < data.questions[i].answers.length; j++) {
                         answers.push(new Answer_1.Answer(data.questions[i].answers[j].body, data.questions[i].answers[j].correct, data.questions[i].answers[j].id));
                     }
-                    questions.push(new Question_1.Question(data.questions[i].body, answers, data.questions[i].id));
+                    questions.push(new Question_1.Question(data.questions[i].body, answers, data.questions[i].editingAnswerId, data.questions[i].id));
                 }
-                return new Testing_1.Testing(data.title, questions, data.id);
+                return new Testing_1.Testing(data.title, questions, data.editingQuestionId, data.id);
             }
             catch (e) {
                 console.log(e);
@@ -76,11 +76,158 @@ class TestingRepositoryImpl {
                     },
                     data: {
                         title: testing.title,
+                        editingQuestionId: testing.editingQuestionId
+                    }
+                });
+                // for (let i = 0; i < testing.questions.length; i++) {
+                //     await this.dbClient.question.upsert({
+                //         where: {
+                //             id: testing.questions[i].id
+                //         },
+                //         update: {
+                //             body: testing.questions[i].body
+                //         },
+                //         create: {
+                //             id: testing.questions[i].id,
+                //             body: testing.questions[i].body,
+                //             testingId: testing.id
+                //         }
+                //     });
+                //     for (let j = 0; j < testing.questions[i].answers.length; j++) {
+                //         await this.dbClient.answers.upsert({
+                //             where: {
+                //                 id: testing.questions[i].answers[j].id
+                //             },
+                //             update: {
+                //                 body: testing.questions[i].answers[j].body,
+                //                 correct: testing.questions[i].answers[j].correct
+                //             },
+                //             create: {
+                //                 id: testing.questions[i].answers[j].id,
+                //                 body: testing.questions[i].answers[j].body,
+                //                 correct: testing.questions[i].answers[j].correct,
+                //                 questionId: testing.questions[i].id
+                //             }
+                //         });
+                //     }
+                // }
+            }
+            catch (e) {
+                console.log(e);
+            }
+        });
+    }
+    createQuestion(question, testingId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                yield this.dbClient.question.create({
+                    data: {
+                        id: question.id,
+                        body: question.body,
+                        testingId
                     }
                 });
             }
             catch (e) {
                 console.log(e);
+            }
+        });
+    }
+    updateQuestion(question) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                yield this.dbClient.question.update({
+                    where: {
+                        id: question.id
+                    },
+                    data: {
+                        body: question.body,
+                        editingAnswerId: question.editingAnswerId,
+                    }
+                });
+            }
+            catch (e) {
+                console.log(e);
+            }
+        });
+    }
+    getQuestionById(id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const data = yield this.dbClient.question.findFirst({
+                    where: {
+                        id
+                    },
+                    include: {
+                        answers: true
+                    }
+                });
+                if (!data) {
+                    return null;
+                }
+                const answers = [];
+                for (let i = 0; i < data.answers.length; i++) {
+                    answers.push(new Answer_1.Answer(data.answers[i].body, data.answers[i].correct, data.answers[i].id));
+                }
+                return new Question_1.Question(data.body, answers, data.editingAnswerId, data.id);
+            }
+            catch (e) {
+                console.log(e);
+                return null;
+            }
+        });
+    }
+    createAnswer(answer, questionId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                yield this.dbClient.answers.create({
+                    data: {
+                        id: answer.id,
+                        body: answer.body,
+                        correct: answer.correct,
+                        questionId
+                    }
+                });
+            }
+            catch (e) {
+                console.log(e);
+            }
+        });
+    }
+    updateAnswer(answer) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                yield this.dbClient.answers.update({
+                    where: {
+                        id: answer.id
+                    },
+                    data: {
+                        body: answer.body,
+                        correct: answer.correct,
+                    }
+                });
+            }
+            catch (e) {
+                console.log(e);
+            }
+        });
+    }
+    getAnswerById(id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const data = yield this.dbClient.answers.findFirst({
+                    where: {
+                        id
+                    }
+                });
+                if (!data) {
+                    return null;
+                }
+                return new Answer_1.Answer(data.body, data.correct, data.id);
+            }
+            catch (e) {
+                console.log(e);
+                return null;
             }
         });
     }
