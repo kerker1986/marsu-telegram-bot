@@ -1,9 +1,9 @@
 import {TestingRepository} from "../TestingRepository";
 import {PrismaClient} from "@prisma/client";
 import {Testing} from "../../infrastructure/entity/Testing";
-import e from "express";
 import {Question} from "../../infrastructure/entity/Question";
 import {Answer} from "../../infrastructure/entity/Answer";
+import {TestingPassing} from "../../infrastructure/entity/TestingPassing";
 
 export class TestingRepositoryImpl implements TestingRepository {
 
@@ -53,6 +53,47 @@ export class TestingRepositoryImpl implements TestingRepository {
         }
     }
 
+    async getByOwnerId(ownerId: string): Promise<Testing[]> {
+        try {
+
+            const data = await this.dbClient.testing.findMany({
+                where: {
+                    ownerId
+                },
+                include: {
+                    questions: {
+                        include: {
+                            answers: true
+                        }
+                    }
+                }
+            });
+
+            const result: Testing [] = [];
+
+            for (let i = 0; i < data.length; i++) {
+
+                const questions: Question[] = [];
+
+                for (let j = 0; j < data[i].questions.length; j++) {
+                    const answers: Answer[] = [];
+
+                    for (let k = 0; k < data[i].questions[j].answers.length; k++) {
+                        answers.push(new Answer(data[i].questions[j].answers[k].body, data[i].questions[j].answers[k].correct, data[i].questions[j].answers[k].id));
+                    }
+
+                    questions.push(new Question(data[i].questions[j].body, answers, data[i].questions[j].editingAnswerId, data[i].questions[j].id));
+                }
+                result.push(new Testing(data[i].title, questions, data[i].editingQuestionId, data[i].id));
+
+            }
+
+            return result
+        } catch (e) {
+            console.log(e);
+            return []
+        }
+    }
 
     async create(testing: Testing, ownerId: string): Promise<void> {
         try {
@@ -179,7 +220,6 @@ export class TestingRepositoryImpl implements TestingRepository {
         }
     }
 
-
     async createAnswer(answer: Answer, questionId: string): Promise<void> {
         try {
             await this.dbClient.answers.create({
@@ -230,14 +270,108 @@ export class TestingRepositoryImpl implements TestingRepository {
         }
     }
 
+    async getAnswerByBody(body: string): Promise<Answer | null> {
+        try {
+            const data = await this.dbClient.answers.findFirst({
+                where: {
+                    body
+                }
+            });
+
+            if (!data) {
+                return null;
+            }
+
+            return new Answer(data.body, data.correct, data.id);
+        } catch (e) {
+            console.log(e);
+            return null;
+        }
+    }
+
 
     async deleteById(id: string): Promise<void> {
         try {
             await this.dbClient.testing.delete({
                 where: {
                     id
+                },
+                include: {
+                    questions: true
                 }
             })
+        } catch (e) {
+            console.log(e);
+        }
+    }
+
+    async getTestingPassingById(id: string): Promise<TestingPassing | null> {
+        try {
+
+            const data = await this.dbClient.testingPassing.findFirst({
+                where: {
+                    id
+                },
+                include: {
+                    passingAnswers: {
+                        include: {
+                            answer: true
+                        }
+                    }
+                }
+            });
+
+            if (!data) return null;
+
+            const answers: Answer[] = [];
+
+            for (let i = 0; i < data.passingAnswers.length; i++) {
+                answers.push(new Answer(data.passingAnswers[i].answer.body, data.passingAnswers[i].answer.correct, data.passingAnswers[i].answer.id));
+            }
+
+            return new TestingPassing(data.userId, data.testingId, data.currentQuestionId, answers, data.id)
+
+        } catch (e) {
+            console.log(e);
+            return null
+        }
+    }
+
+
+    async createTestingPassing(testingPassing: TestingPassing): Promise<void> {
+        try {
+            await this.dbClient.testingPassing.create({
+                data: {
+                    id: testingPassing.id,
+                    testingId: testingPassing.testingId,
+                    currentQuestionId: testingPassing.currentQuestionId,
+                    userId: testingPassing.userId
+                }
+            });
+        } catch (e) {
+            console.log(e);
+        }
+    }
+
+    async updateTestingPassing(testingPassing: TestingPassing): Promise<void> {
+        try {
+            await this.dbClient.testingPassing.update({
+                where: {
+                    id: testingPassing.id
+                },
+                data: {
+                    currentQuestionId: testingPassing.currentQuestionId
+                }
+            });
+
+            for (let i = 0; i < testingPassing.answers.length; i++) {
+                await this.dbClient.passingAnswer.create({
+                    data: {
+                        testingPassingId: testingPassing.id,
+                        answerId: testingPassing.answers[i].id,
+                    }
+                })
+            }
         } catch (e) {
             console.log(e);
         }

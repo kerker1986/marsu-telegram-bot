@@ -19,15 +19,6 @@ class UserRepositoryImpl {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const data = yield this.dbClient.user.findFirst({
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                        userName: true,
-                        status: true,
-                        telegramId: true,
-                        editingTestingId: true
-                    },
                     where: {
                         telegramId: id
                     }
@@ -35,7 +26,7 @@ class UserRepositoryImpl {
                 if (!data) {
                     return null;
                 }
-                return new User_1.User(data.firstName, data.lastName, data.userName, data.telegramId, data.status, data.editingTestingId, data.id);
+                return new User_1.User(data.firstName, data.lastName, data.userName, data.telegramId, data.status, data.editingTestingId, data.passingTestingId, data.id);
             }
             catch (e) {
                 console.log(e);
@@ -53,7 +44,6 @@ class UserRepositoryImpl {
                         lastName: user.lastName,
                         userName: user.userName,
                         telegramId: user.telegramId,
-                        editingTestingId: user.editingTestingId,
                         status: user.status
                     }
                 });
@@ -76,6 +66,7 @@ class UserRepositoryImpl {
                         userName: user.userName,
                         status: user.status,
                         editingTestingId: user.editingTestingId,
+                        passingTestingId: user.passingTestingId,
                     }
                 });
             }

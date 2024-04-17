@@ -6,6 +6,7 @@ import BotAnswerEnums from "../infrastructure/BotAnswerEnums";
 import {Testing} from "../infrastructure/entity/Testing";
 import {Question} from "../infrastructure/entity/Question";
 import {Answer} from "../infrastructure/entity/Answer";
+import {TestingPassing} from "../infrastructure/entity/TestingPassing";
 
 export class TelegramBotController {
 
@@ -66,6 +67,23 @@ export class TelegramBotController {
                     break;
 
 
+                case BotAnswerEnums.BotButtonsText.passing_testing:
+                    if (user.status !== 'start') return;
+
+                    user.status = "passing_testing";
+
+                    const testings: Testing[] = await this.testingRepository.getByOwnerId(user.id);
+
+                    await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.start_reply, {
+                        reply_markup: {
+                            keyboard: testings.map(testing => [{text: `${testing.title} (${testing.id})`}]),
+                            one_time_keyboard: true,
+                            resize_keyboard: true
+                        }
+                    });
+
+                    break;
+
                 case BotAnswerEnums.BotButtonsText.back_to_start :
                     user.status = "start";
 
@@ -88,7 +106,11 @@ export class TelegramBotController {
 
 
                 case BotAnswerEnums.BotButtonsText.add_question:
-                    if (user.status !== 'create_question' || !user.editingTestingId) return;
+                    if (!['save_testing', 'create_question'].includes(user.status) || !user.editingTestingId) return;
+
+                    if (user.status === 'save_testing') {
+                        user.status = 'create_question';
+                    }
 
                     const testing: Testing | null = await this.testingRepository.getById(user.editingTestingId);
 
@@ -143,11 +165,50 @@ export class TelegramBotController {
 
                     if (!currentQuestion) return;
 
+
                     await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.pick_correct_answer, {
-                        // @ts-ignore
-                        keyboard: [...currentQuestion.answers.map((item) => [{text: item.body}])],
-                        one_time_keyboard: true,
-                        resize_keyboard: true
+                        reply_markup: {
+                            keyboard: currentQuestion.answers.map((item) => [{text: item.body}]),
+                            one_time_keyboard: true,
+                            resize_keyboard: true
+                        }
+                    });
+
+
+                    break;
+
+
+                case BotAnswerEnums.BotButtonsText.save_testing :
+                    if (user.status !== 'save_testing') return;
+
+                    if (user.editingTestingId) {
+
+                        const testing: Testing | null = await this.testingRepository.getById(user.editingTestingId);
+                        if (testing?.editingQuestionId) {
+
+                            const question: Question | null = await this.testingRepository.getQuestionById(testing.editingQuestionId);
+
+                            if (question?.editingAnswerId) {
+                                question.editingAnswerId = null;
+                                await this.testingRepository.updateQuestion(question);
+                            }
+
+                            testing.editingQuestionId = null;
+                            await this.testingRepository.update(testing);
+                        }
+
+                        user.editingTestingId = null;
+                    }
+
+                    user.status = "start";
+
+
+                    await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.create_testing_save, {
+                        reply_markup: {
+                            keyboard: [[{text: BotAnswerEnums.BotButtonsText.create_testing}], [{text: BotAnswerEnums.BotButtonsText.passing_testing}]],
+                            one_time_keyboard: true,
+                            resize_keyboard: true
+                        }
                     });
 
 
@@ -156,100 +217,207 @@ export class TelegramBotController {
 
                 default:
 
-                    switch (user.status) {
+                    if (user.status === 'create_answer') {
+                        if (!message.text) return;
 
-                        case 'create_answer':
+                        const qId: string | null | undefined = (await this.testingRepository.getById(user.editingTestingId as string))?.editingQuestionId;
 
-                            if (!message.text) return;
+                        if (!qId) return;
 
-                            const qId: string | null | undefined = (await this.testingRepository.getById(user.editingTestingId as string))?.editingQuestionId;
+                        const currentQuestion: Question | null = await this.testingRepository.getQuestionById(qId);
 
-                            if (!qId) return;
+                        if (!currentQuestion) return;
 
-                            const currentQuestion: Question | null = await this.testingRepository.getQuestionById(qId);
+                        const answer: Answer | null = await this.testingRepository.getAnswerById(currentQuestion.editingAnswerId as string);
 
-                            if (!currentQuestion) return;
+                        if (!answer) return;
 
-                            const answer: Answer | null = await this.testingRepository.getAnswerById(currentQuestion.editingAnswerId as string);
+                        answer.body = message.text;
 
-                            if (!answer) return;
+                        await this.testingRepository.updateAnswer(answer);
 
-                            answer.body = message.text;
+                        const keyboard = [[{text: BotAnswerEnums.BotButtonsText.add_answer}]];
 
-                            await this.testingRepository.updateAnswer(answer);
+                        if (currentQuestion?.answers.length >= 2) {
+                            keyboard.push([{text: BotAnswerEnums.BotButtonsText.pick_correct_answer}]);
+                        }
 
-                            user.status = "create_answer";
-
-                            const keyboard = [[{text: BotAnswerEnums.BotButtonsText.add_answer}]];
-
-                            if (currentQuestion?.answers.length >= 2) {
-                                keyboard.push([{text: BotAnswerEnums.BotButtonsText.pick_correct_answer}]);
+                        await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.create_answer_title_save, {
+                            reply_markup: {
+                                keyboard,
+                                one_time_keyboard: true,
+                                resize_keyboard: true
                             }
+                        });
 
-                            await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.create_answer_title_save, {
+                    }
+                    if (user.status === 'create_question') {
+                        if (!message.text) return;
+
+                        const questionId: string | null | undefined = (await this.testingRepository.getById(user.editingTestingId as string))?.editingQuestionId;
+
+                        if (!questionId) return;
+
+                        const question: Question | null = await this.testingRepository.getQuestionById(questionId);
+
+                        if (!question) return;
+
+                        question.body = message.text;
+
+                        await this.testingRepository.updateQuestion(question);
+
+                        user.status = "create_answer";
+
+                        await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.create_question_title_save, {
+                            reply_markup: {
+                                keyboard: [
+                                    [{text: BotAnswerEnums.BotButtonsText.add_answer}],
+                                ],
+                                one_time_keyboard: true,
+                                resize_keyboard: true
+                            }
+                        });
+
+                    }
+                    if (user.status === 'create_testing') {
+                        if (!message.text) return;
+
+                        const testing: Testing | null = await this.testingRepository.getById(user.editingTestingId as string);
+
+                        if (!testing) return;
+
+                        testing.title = message.text;
+
+                        await this.testingRepository.update(testing);
+
+                        user.status = "create_question";
+
+                        await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.create_testing_title_save, {
+                            reply_markup: {
+                                keyboard: [
+                                    [{text: BotAnswerEnums.BotButtonsText.back_to_start}, {text: BotAnswerEnums.BotButtonsText.add_question}],
+                                ],
+                                one_time_keyboard: true,
+                                resize_keyboard: true
+                            }
+                        });
+                        if (!message.text) return;
+
+
+                    }
+                    if (user.status === "pick_correct_answer") {
+                        if (!message.text) return;
+
+                        const answer: Answer | null = await this.testingRepository.getAnswerByBody(message.text);
+
+                        if (!answer) return;
+
+                        answer.correct = true;
+
+                        await this.testingRepository.updateAnswer(answer);
+
+                        user.status = 'save_testing';
+
+                        await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.pick_correct_answer_save, {
+                            reply_markup: {
+                                keyboard: [[{text: BotAnswerEnums.BotButtonsText.add_question}], [{text: BotAnswerEnums.BotButtonsText.save_testing}]],
+                                one_time_keyboard: true,
+                                resize_keyboard: true
+                            }
+                        });
+                    }
+
+                    if (user.status === 'pick_answer') {
+                        if (!message.text || !user.passingTestingId) return;
+
+                        const tempMessageSplit: string[] = message.text?.split(/[()]/);
+
+                        const id: string = tempMessageSplit[tempMessageSplit?.length - 2];
+
+                        const answer: Answer | null = await this.testingRepository.getAnswerById(id);
+
+                        if (!answer) return null;
+
+                        const testingPassing: TestingPassing | null = await this.testingRepository.getTestingPassingById(user.passingTestingId);
+
+                        if (!testingPassing) return null;
+
+                        const testing: Testing | null = await this.testingRepository.getById(testingPassing.testingId);
+
+                        if (!testing) return null;
+
+                        testingPassing.answers.push(answer);
+
+                        let index: number = testing.questions.findIndex(item => item.id === testingPassing.currentQuestionId);
+
+                        if (index <= -1) return null;
+
+                        index++;
+
+                        if(testing.questions[index]){
+
+                            testingPassing.currentQuestionId = testing.questions[index].id;
+
+
+                            await this.telegramBot.sendMessage(user.telegramId, testing.questions[index].body, {
                                 reply_markup: {
-                                    keyboard,
+                                    keyboard: testing.questions[index].answers.map(answer => [{text: `${answer.body}(${answer.id})`}]),
                                     one_time_keyboard: true,
                                     resize_keyboard: true
                                 }
                             });
 
-                            break
+                        }else{
+                            user.status = 'start';
 
-                        case 'create_question':
-                            if (!message.text) return;
+                            const results: string = `${testingPassing.answers.filter(answer => answer.correct).length}/${testingPassing.answers.length}`
 
-                            const questionId: string | null | undefined = (await this.testingRepository.getById(user.editingTestingId as string))?.editingQuestionId;
-
-                            if (!questionId) return;
-
-                            const question: Question | null = await this.testingRepository.getQuestionById(questionId);
-
-                            if (!question) return;
-
-                            question.body = message.text;
-
-                            await this.testingRepository.updateQuestion(question);
-
-                            user.status = "create_answer";
-
-                            await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.create_question_title_save, {
+                            await this.telegramBot.sendMessage(user.telegramId, `${BotAnswerEnums.BotMessagesText.passing_testing_save} ${results}`, {
                                 reply_markup: {
-                                    keyboard: [
-                                        [{text: BotAnswerEnums.BotButtonsText.add_answer}],
-                                    ],
+                                    keyboard: [[{text: BotAnswerEnums.BotButtonsText.create_testing}, {text: BotAnswerEnums.BotButtonsText.passing_testing}],],
                                     one_time_keyboard: true,
                                     resize_keyboard: true
                                 }
                             });
 
-                            break
+                        }
 
-                        case 'create_testing':
-                            if (!message.text) return;
+                        await this.testingRepository.updateTestingPassing(testingPassing);
 
-                            const testing: Testing | null = await this.testingRepository.getById(user.editingTestingId as string);
 
-                            if (!testing) return;
 
-                            console.log(message.text)
 
-                            testing.title = message.text;
 
-                            await this.testingRepository.update(testing);
+                    }
 
-                            user.status = "create_question";
+                    if (user.status === "passing_testing") {
+                        if (!message.text) return;
 
-                            await this.telegramBot.sendMessage(user.telegramId, BotAnswerEnums.BotMessagesText.create_testing_title_save, {
-                                reply_markup: {
-                                    keyboard: [
-                                        [{text: BotAnswerEnums.BotButtonsText.back_to_start}, {text: BotAnswerEnums.BotButtonsText.add_question}],
-                                    ],
-                                    one_time_keyboard: true,
-                                    resize_keyboard: true
-                                }
-                            });
+                        const tempMessageSplit: string[] = message.text?.split(/[()]/);
 
+                        const id: string = tempMessageSplit[tempMessageSplit?.length - 2];
+
+                        const testing: Testing | null = await this.testingRepository.getById(id);
+
+                        if (!testing) return null;
+
+                        const testingPassing: TestingPassing = await this.createEmptyTestingPassing(testing, user.id);
+
+                        const question: Question | null = await this.testingRepository.getQuestionById(testingPassing.currentQuestionId);
+
+                        if (!question) return null;
+
+                        user.passingTestingId = testingPassing.id;
+
+                        user.status = "pick_answer";
+
+                        await this.telegramBot.sendMessage(user.telegramId, question.body, {
+                            reply_markup: {
+                                keyboard: question.answers.map(answer => [{text: `${answer.body} (${answer.id})`}]),
+                                one_time_keyboard: true,
+                                resize_keyboard: true
+                            }
+                        });
                     }
 
                     break;
@@ -285,6 +453,12 @@ export class TelegramBotController {
         const answer: Answer = new Answer('', false);
         await this.testingRepository.createAnswer(answer, questionId);
         return answer;
+    }
+
+    async createEmptyTestingPassing(testing: Testing, userId: string): Promise<TestingPassing> {
+        const testingPassing: TestingPassing = new TestingPassing(userId, testing.id, testing.questions[0]?.id);
+        await this.testingRepository.createTestingPassing(testingPassing);
+        return testingPassing;
     }
 
 }

@@ -13,15 +13,6 @@ export class UserRepositoryImpl implements UserRepository {
     async getByTelegramId(id: number): Promise<User | null> {
         try {
             const data = await this.dbClient.user.findFirst({
-                select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    userName: true,
-                    status: true,
-                    telegramId: true,
-                    editingTestingId: true
-                },
                 where: {
                     telegramId: id
                 }
@@ -31,7 +22,7 @@ export class UserRepositoryImpl implements UserRepository {
                 return null;
             }
 
-            return new User(data.firstName, data.lastName, data.userName, data.telegramId, data.status, data.editingTestingId, data.id);
+            return new User(data.firstName, data.lastName, data.userName, data.telegramId, data.status, data.editingTestingId, data.passingTestingId, data.id);
         } catch (e) {
             console.log(e);
             return null;
@@ -47,7 +38,6 @@ export class UserRepositoryImpl implements UserRepository {
                     lastName: user.lastName,
                     userName: user.userName,
                     telegramId: user.telegramId,
-                    editingTestingId: user.editingTestingId,
                     status: user.status
                 }
             })
@@ -68,12 +58,12 @@ export class UserRepositoryImpl implements UserRepository {
                     userName: user.userName,
                     status: user.status,
                     editingTestingId: user.editingTestingId,
+                    passingTestingId: user.passingTestingId,
                 }
             })
         } catch (e) {
             console.log(e);
         }
     }
-
 
 }

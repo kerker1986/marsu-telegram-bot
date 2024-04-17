@@ -20,42 +20,67 @@ enum StatusEnum {
   create_question
   create_answer
   passing_testing
+  pick_answer
   pick_correct_answer
+  save_testing
 }
 
 model User {
-  id               String     @id
+  id               String           @id
   firstName        String
   lastName         String
   userName         String
-  status           StatusEnum @default(start)
+  status           StatusEnum       @default(start)
   telegramId       Int
   testings         Testing[]
+  testingsPassings TestingPassing[]
   editingTestingId String?
+  passingTestingId String?
 }
 
 model Testing {
-  id                String     @id
+  id                String           @id
   title             String
-  owner             User       @relation(fields: [ownerId], references: [id])
+  owner             User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   ownerId           String
   questions         Question[]
   editingQuestionId String?
+  testingPassings   TestingPassing[]
 }
 
 model Question {
   id              String    @id
   body            String
   answers         Answers[]
-  testing         Testing   @relation(fields: [testingId], references: [id])
+  testing         Testing   @relation(fields: [testingId], references: [id], onDelete: Cascade)
   testingId       String
   editingAnswerId String?
 }
 
 model Answers {
-  id         String   @id
-  body       String
-  correct    Boolean
-  question   Question @relation(fields: [questionId], references: [id])
-  questionId String
+  id             String          @id
+  body           String
+  correct        Boolean
+  question       Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId     String
+  passingAnswers PassingAnswer[]
+}
+
+model TestingPassing {
+  id                String          @id
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  testingId         String
+  testing           Testing         @relation(fields: [testingId], references: [id], onDelete: Cascade)
+  passingAnswers    PassingAnswer[]
+  currentQuestionId String
+}
+
+model PassingAnswer {
+  answer           Answers         @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  answerId         String
+  testingPassing   TestingPassing? @relation(fields: [testingPassingId], references: [id], onDelete: Cascade)
+  testingPassingId String
+
+  @@id([answerId, testingPassingId])
 }

@@ -13,6 +13,7 @@ exports.TestingRepositoryImpl = void 0;
 const Testing_1 = require("../../infrastructure/entity/Testing");
 const Question_1 = require("../../infrastructure/entity/Question");
 const Answer_1 = require("../../infrastructure/entity/Answer");
+const TestingPassing_1 = require("../../infrastructure/entity/TestingPassing");
 class TestingRepositoryImpl {
     constructor(dbClient) {
         this.dbClient = dbClient;
@@ -48,6 +49,41 @@ class TestingRepositoryImpl {
             catch (e) {
                 console.log(e);
                 return null;
+            }
+        });
+    }
+    getByOwnerId(ownerId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const data = yield this.dbClient.testing.findMany({
+                    where: {
+                        ownerId
+                    },
+                    include: {
+                        questions: {
+                            include: {
+                                answers: true
+                            }
+                        }
+                    }
+                });
+                const result = [];
+                for (let i = 0; i < data.length; i++) {
+                    const questions = [];
+                    for (let j = 0; j < data[i].questions.length; j++) {
+                        const answers = [];
+                        for (let k = 0; k < data[i].questions[j].answers.length; k++) {
+                            answers.push(new Answer_1.Answer(data[i].questions[j].answers[k].body, data[i].questions[j].answers[k].correct, data[i].questions[j].answers[k].id));
+                        }
+                        questions.push(new Question_1.Question(data[i].questions[j].body, answers, data[i].questions[j].editingAnswerId, data[i].questions[j].id));
+                    }
+                    result.push(new Testing_1.Testing(data[i].title, questions, data[i].editingQuestionId, data[i].id));
+                }
+                return result;
+            }
+            catch (e) {
+                console.log(e);
+                return [];
             }
         });
     }
@@ -231,14 +267,107 @@ class TestingRepositoryImpl {
             }
         });
     }
+    getAnswerByBody(body) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const data = yield this.dbClient.answers.findFirst({
+                    where: {
+                        body
+                    }
+                });
+                if (!data) {
+                    return null;
+                }
+                return new Answer_1.Answer(data.body, data.correct, data.id);
+            }
+            catch (e) {
+                console.log(e);
+                return null;
+            }
+        });
+    }
     deleteById(id) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 yield this.dbClient.testing.delete({
                     where: {
                         id
+                    },
+                    include: {
+                        questions: true
                     }
                 });
+            }
+            catch (e) {
+                console.log(e);
+            }
+        });
+    }
+    getTestingPassingById(id) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const data = yield this.dbClient.testingPassing.findFirst({
+                    where: {
+                        id
+                    },
+                    include: {
+                        passingAnswers: {
+                            include: {
+                                answer: true
+                            }
+                        }
+                    }
+                });
+                if (!data)
+                    return null;
+                const answers = [];
+                for (let i = 0; i < data.passingAnswers.length; i++) {
+                    answers.push(new Answer_1.Answer(data.passingAnswers[i].answer.body, data.passingAnswers[i].answer.correct, data.passingAnswers[i].answer.id));
+                }
+                return new TestingPassing_1.TestingPassing(data.userId, data.testingId, data.currentQuestionId, answers, data.id);
+            }
+            catch (e) {
+                console.log(e);
+                return null;
+            }
+        });
+    }
+    createTestingPassing(testingPassing) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                yield this.dbClient.testingPassing.create({
+                    data: {
+                        id: testingPassing.id,
+                        testingId: testingPassing.testingId,
+                        currentQuestionId: testingPassing.currentQuestionId,
+                        userId: testingPassing.userId
+                    }
+                });
+            }
+            catch (e) {
+                console.log(e);
+            }
+        });
+    }
+    updateTestingPassing(testingPassing) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                yield this.dbClient.testingPassing.update({
+                    where: {
+                        id: testingPassing.id
+                    },
+                    data: {
+                        currentQuestionId: testingPassing.currentQuestionId
+                    }
+                });
+                for (let i = 0; i < testingPassing.answers.length; i++) {
+                    yield this.dbClient.passingAnswer.create({
+                        data: {
+                            testingPassingId: testingPassing.id,
+                            answerId: testingPassing.answers[i].id,
+                        }
+                    });
+                }
             }
             catch (e) {
                 console.log(e);
